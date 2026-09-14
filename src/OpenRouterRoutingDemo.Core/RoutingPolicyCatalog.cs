@@ -1,0 +1,48 @@
+namespace OpenRouterRoutingDemo.Core;
+
+public sealed class RoutingPolicyCatalog
+{
+    private readonly IReadOnlyDictionary<string, RoutingPolicy> _policies;
+
+    public RoutingPolicyCatalog(IEnumerable<RoutingPolicy> policies)
+    {
+        _policies = policies.ToDictionary(policy => policy.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IEnumerable<RoutingPolicy> All => _policies.Values;
+
+    public bool TryGet(string name, out RoutingPolicy? policy) => _policies.TryGetValue(name, out policy);
+
+    public static RoutingPolicyCatalog CreateDefault() => new(
+    [
+        new RoutingPolicy(
+            Name: "economy",
+            Description: "Prefer the least-expensive eligible endpoint and stop above an explicit price ceiling.",
+            Models: ["openai/gpt-5-mini", "google/gemini-3-flash-preview"],
+            Provider: new ProviderRoutingOptions
+            {
+                Sort = new ProviderSortOptions(By: "price", Partition: "none"),
+                AllowFallbacks = true,
+                RequireParameters = true,
+                DataCollection = "deny",
+                MaxPrice = new PriceCeiling(Prompt: 0.50m, Completion: 2.00m)
+            }),
+        new RoutingPolicy(
+            Name: "resilient-private",
+            Description: "Try several capable models while requiring no provider retention or data collection.",
+            Models:
+            [
+                "anthropic/claude-sonnet-4.5",
+                "openai/gpt-5-mini",
+                "google/gemini-3-flash-preview"
+            ],
+            Provider: new ProviderRoutingOptions
+            {
+                Sort = new ProviderSortOptions(By: "throughput", Partition: "model"),
+                AllowFallbacks = true,
+                RequireParameters = true,
+                DataCollection = "deny",
+                ZeroDataRetention = true
+            })
+    ]);
+}
