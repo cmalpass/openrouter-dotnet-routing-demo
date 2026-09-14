@@ -18,7 +18,7 @@ public sealed class RoutingPolicyCatalog
         new RoutingPolicy(
             Name: "economy",
             Description: "Prefer the least-expensive eligible endpoint and stop above an explicit price ceiling.",
-            Models: ["openai/gpt-5-mini", "google/gemini-3-flash-preview"],
+            Models: ["openai/gpt-5-mini", "openai/gpt-4.1-mini"],
             Provider: new ProviderRoutingOptions
             {
                 Sort = new ProviderSortOptions(By: "price", Partition: "none"),
@@ -32,9 +32,9 @@ public sealed class RoutingPolicyCatalog
             Description: "Try several capable models while requiring no provider retention or data collection.",
             Models:
             [
-                "anthropic/claude-sonnet-4.5",
                 "openai/gpt-5-mini",
-                "google/gemini-3-flash-preview"
+                "deepseek/deepseek-v4-pro",
+                "tencent/hy4-preview"
             ],
             Provider: new ProviderRoutingOptions
             {

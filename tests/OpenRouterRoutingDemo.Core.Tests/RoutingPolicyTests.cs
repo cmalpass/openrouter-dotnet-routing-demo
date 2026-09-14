@@ -33,7 +33,13 @@ public sealed class RoutingPolicyTests
         Assert.True(request.Provider.ZeroDataRetention);
         Assert.Equal("deny", request.Provider.DataCollection);
         Assert.True(request.Provider.AllowFallbacks);
-        Assert.Equal(3, request.Models.Count);
+        Assert.Equal(
+            [
+                "openai/gpt-5-mini",
+                "deepseek/deepseek-v4-pro",
+                "tencent/hy4-preview"
+            ],
+            request.Models);
     }
 
     [Theory]
@@ -45,6 +51,19 @@ public sealed class RoutingPolicyTests
         Assert.True(catalog.TryGet("economy", out var policy));
 
         Assert.Throws<ArgumentException>(() => policy!.CreateRequest(prompt));
+    }
+
+    [Fact]
+    public void CreateRequestRejectsOversizedPrompt()
+    {
+        var catalog = RoutingPolicyCatalog.CreateDefault();
+        Assert.True(catalog.TryGet("economy", out var policy));
+
+        var oversizedPrompt = new string('x', 8_001);
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => policy!.CreateRequest(oversizedPrompt));
+        Assert.Equal("prompt", exception.ParamName);
     }
 
     [Fact]

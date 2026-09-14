@@ -13,12 +13,16 @@ public sealed class OpenRouterHttpGatewayTests
         string? requestBody = null;
         string? authorization = null;
         string? applicationTitle = null;
+        string? applicationUrl = null;
+        string? routerMetadata = null;
 
         var handler = new StubHttpMessageHandler(async request =>
         {
             requestBody = await request.Content!.ReadAsStringAsync();
             authorization = request.Headers.Authorization?.ToString();
             applicationTitle = request.Headers.GetValues("X-OpenRouter-Title").Single();
+            applicationUrl = request.Headers.GetValues("HTTP-Referer").Single();
+            routerMetadata = request.Headers.GetValues("X-OpenRouter-Metadata").Single();
 
             const string responseJson = """
                 {
@@ -33,7 +37,23 @@ public sealed class OpenRouterHttpGatewayTests
                     "cost": 0.00042
                   },
                   "openrouter_metadata": {
-                    "provider_name": "Example Provider"
+                    "requested": "openai/gpt-5-mini",
+                    "strategy": "direct",
+                    "endpoints": {
+                      "total": 2,
+                      "available": [
+                        {
+                          "provider": "Other Provider",
+                          "model": "openai/gpt-5-mini",
+                          "selected": false
+                        },
+                        {
+                          "provider": "Example Provider",
+                          "model": "openai/gpt-5-mini",
+                          "selected": true
+                        }
+                      ]
+                    }
                   }
                 }
                 """;
@@ -51,7 +71,8 @@ public sealed class OpenRouterHttpGatewayTests
         var options = Options.Create(new OpenRouterOptions
         {
             ApiKey = "test-key",
-            ApplicationTitle = "Gateway tests"
+            ApplicationTitle = "Gateway tests",
+            ApplicationUrl = "https://example.test"
         });
         var gateway = new OpenRouterHttpGateway(httpClient, options);
         var catalog = RoutingPolicyCatalog.CreateDefault();
@@ -61,6 +82,8 @@ public sealed class OpenRouterHttpGatewayTests
 
         Assert.Equal("Bearer test-key", authorization);
         Assert.Equal("Gateway tests", applicationTitle);
+        Assert.Equal("https://example.test", applicationUrl);
+        Assert.Equal("enabled", routerMetadata);
         Assert.Contains("\"sort\":{\"by\":\"price\",\"partition\":\"none\"}", requestBody, StringComparison.Ordinal);
         Assert.Contains("\"max_price\"", requestBody, StringComparison.Ordinal);
         Assert.Equal("Example Provider", response.Provider);

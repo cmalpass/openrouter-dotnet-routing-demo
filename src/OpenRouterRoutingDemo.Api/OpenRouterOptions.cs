@@ -14,5 +14,5 @@ public sealed class OpenRouterOptions
 
     public string? ApplicationUrl { get; set; }
 
-    public string ApplicationTitle { get; set; } = "OpenRouter .NET Routing Demo";
+    public string? ApplicationTitle { get; set; }
 }

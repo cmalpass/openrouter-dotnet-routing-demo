@@ -75,6 +75,15 @@ Override the compatibility-path model without changing source:
 OpenRouter__CompatibleModel='provider/model-slug'
 ```
 
+To opt into OpenRouter app attribution, configure both values before starting the API:
+
+```bash
+OpenRouter__ApplicationUrl='https://your-app.example' \
+OpenRouter__ApplicationTitle='Your application name'
+```
+
+These headers identify an application to OpenRouter; they do not authenticate the request.
+
 Model availability, prices, and capabilities change. Before enabling a policy in production, validate its configured model IDs with the [OpenRouter Models API](https://openrouter.ai/docs/guides/overview/models).
 
 ## Routing policies
@@ -96,6 +105,16 @@ dotnet test OpenRouterRoutingDemo.sln --configuration Release --no-build
 The core tests verify policy selection, validation, JSON field names, privacy controls, fallback model order, and the simulated provider. API tests exercise the running HTTP pipeline through `WebApplicationFactory<Program>`, the typed OpenRouter request/response boundary, and public model-catalogue mapping through fake upstream handlers.
 
 The test suite never contacts OpenRouter and never consumes credits.
+
+## Authoritative references
+
+- [OpenAI .NET SDK: custom base URL and API key](https://github.com/openai/openai-dotnet#using-a-custom-base-url-and-api-key)
+- [Microsoft.Extensions.AI libraries](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai)
+- [OpenRouter provider routing](https://openrouter.ai/docs/guides/routing/provider-selection)
+- [OpenRouter model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)
+- [OpenRouter router metadata](https://openrouter.ai/docs/guides/features/router-metadata)
+- [OpenRouter usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting)
+- [OpenRouter Zero Data Retention](https://openrouter.ai/docs/guides/features/zdr)
 
 ## Repository layout
 

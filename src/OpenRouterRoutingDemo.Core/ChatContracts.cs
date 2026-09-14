@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace OpenRouterRoutingDemo.Core;
@@ -76,9 +75,6 @@ public sealed class OpenRouterChatResponse
     [JsonPropertyName("model")]
     public string Model { get; init; } = string.Empty;
 
-    [JsonPropertyName("provider")]
-    public string? Provider { get; init; }
-
     [JsonPropertyName("choices")]
     public IReadOnlyList<OpenRouterChoice> Choices { get; init; } = [];
 
@@ -86,7 +82,31 @@ public sealed class OpenRouterChatResponse
     public OpenRouterUsage? Usage { get; init; }
 
     [JsonPropertyName("openrouter_metadata")]
-    public JsonElement? OpenRouterMetadata { get; init; }
+    public OpenRouterMetadata? OpenRouterMetadata { get; init; }
+}
+
+public sealed class OpenRouterMetadata
+{
+    [JsonPropertyName("endpoints")]
+    public OpenRouterEndpointsMetadata? Endpoints { get; init; }
+}
+
+public sealed class OpenRouterEndpointsMetadata
+{
+    [JsonPropertyName("available")]
+    public IReadOnlyList<OpenRouterEndpointMetadata> Available { get; init; } = [];
+}
+
+public sealed class OpenRouterEndpointMetadata
+{
+    [JsonPropertyName("provider")]
+    public string Provider { get; init; } = string.Empty;
+
+    [JsonPropertyName("model")]
+    public string Model { get; init; } = string.Empty;
+
+    [JsonPropertyName("selected")]
+    public bool Selected { get; init; }
 }
 
 public sealed class OpenRouterChoice

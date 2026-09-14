@@ -64,30 +64,13 @@ public sealed class OpenRouterHttpGateway(
         return new ChatGatewayResponse(
             Content: content,
             Model: completion.Model,
-            Provider: completion.Provider ?? TryReadProvider(completion.OpenRouterMetadata),
+            Provider: completion.OpenRouterMetadata?.Endpoints?.Available
+                .FirstOrDefault(endpoint => endpoint.Selected)
+                ?.Provider,
             PromptTokens: completion.Usage?.PromptTokens ?? 0,
             CompletionTokens: completion.Usage?.CompletionTokens ?? 0,
             TotalTokens: completion.Usage?.TotalTokens ?? 0,
             Cost: completion.Usage?.Cost,
             Simulated: false);
-    }
-
-    private static string? TryReadProvider(JsonElement? metadata)
-    {
-        if (metadata is not { ValueKind: JsonValueKind.Object } value)
-        {
-            return null;
-        }
-
-        foreach (var propertyName in new[] { "provider_name", "provider" })
-        {
-            if (value.TryGetProperty(propertyName, out var provider) &&
-                provider.ValueKind == JsonValueKind.String)
-            {
-                return provider.GetString();
-            }
-        }
-
-        return null;
     }
 }

@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenRouterRoutingDemo.Core;
 
 namespace OpenRouterRoutingDemo.Api.IntegrationTests;
@@ -8,9 +10,11 @@ namespace OpenRouterRoutingDemo.Api.IntegrationTests;
 public sealed class ApiTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
+    private readonly WebApplicationFactory<Program> _factory;
 
     public ApiTests(WebApplicationFactory<Program> factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -68,5 +72,36 @@ public sealed class ApiTests : IClassFixture<WebApplicationFactory<Program>>
             new ChatGatewayRequest("Hello"));
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatMapsUpstreamFailureWithoutLeakingItsBody()
+    {
+        using var client = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IOpenRouterGateway>();
+                services.AddSingleton<IOpenRouterGateway, FailingGateway>();
+            })).CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/chat/economy",
+            new ChatGatewayRequest("Hello"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Contains("HTTP 429", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("sensitive upstream detail", body, StringComparison.Ordinal);
+    }
+
+    private sealed class FailingGateway : IOpenRouterGateway
+    {
+        public Task<ChatGatewayResponse> SendAsync(
+            RoutingPolicy policy,
+            string prompt,
+            CancellationToken cancellationToken = default) =>
+            throw new OpenRouterRequestException(
+                HttpStatusCode.TooManyRequests,
+                "sensitive upstream detail");
     }
 }
