@@ -7,7 +7,7 @@ The project intentionally separates two integration styles:
 - `CompatibleChatClientFactory` points the official OpenAI .NET client at OpenRouter and exposes `Microsoft.Extensions.AI.IChatClient` for portable chat operations.
 - `OpenRouterHttpGateway` uses explicit JSON contracts for OpenRouter-only fields such as `models`, `provider.sort`, `max_price`, `data_collection`, and `zdr`.
 
-API credentials never enter a browser or request body. Live mode reads the key from the server-side `OPENROUTER_API_KEY` environment variable.
+API credentials never enter a browser or request body. Live mode reads `OPENROUTER_API_KEY` and the separate demo access key from server-side environment variables.
 
 ## Prerequisites
 
@@ -111,7 +111,7 @@ dotnet build OpenRouterRoutingDemo.sln --configuration Release
 dotnet test OpenRouterRoutingDemo.sln --configuration Release --no-build
 ```
 
-The core tests verify policy selection, validation, JSON field names, privacy controls, fallback model order, and the simulated provider. API tests exercise the running HTTP pipeline through `WebApplicationFactory<Program>`, the typed OpenRouter request/response boundary, and public model-catalogue mapping through fake upstream handlers.
+The 24-test suite contains 10 core unit tests and 14 API integration tests. The core tests verify policy selection, validation, JSON field names, privacy controls, fallback model order, and the simulated provider. API tests exercise the running HTTP pipeline through `WebApplicationFactory<Program>`, the typed OpenRouter request/response boundary, live-mode access control and rate limiting, and public model-catalogue mapping through fake upstream handlers.
 
 The test suite never contacts OpenRouter and never consumes credits.
 
