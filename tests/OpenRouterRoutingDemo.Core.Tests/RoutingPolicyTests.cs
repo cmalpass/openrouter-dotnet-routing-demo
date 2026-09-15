@@ -74,4 +74,27 @@ public sealed class RoutingPolicyTests
         Assert.True(catalog.TryGet("RESILIENT-PRIVATE", out var policy));
         Assert.Equal("resilient-private", policy!.Name);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ConstructorRejectsInvalidMaximumCompletionTokens(int maxCompletionTokens)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new RoutingPolicy(
+            "test",
+            "Test policy",
+            ["provider/model"],
+            new ProviderRoutingOptions(),
+            maxCompletionTokens));
+    }
+
+    [Fact]
+    public void ConstructorRejectsEmptyModelIds()
+    {
+        Assert.Throws<ArgumentException>(() => new RoutingPolicy(
+            "test",
+            "Test policy",
+            [""],
+            new ProviderRoutingOptions()));
+    }
 }

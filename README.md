@@ -1,6 +1,6 @@
 # OpenRouter routing policies in .NET 10
 
-This companion application demonstrates how to keep AI model routing, fallback, privacy, and spend controls behind a small ASP.NET Core gateway. It accompanies the article [OpenRouter in .NET: Multi-Model Routing, Fallbacks, and Cost Controls](https://chrismalpass.com/posts/openrouter-dotnet-routing/).
+This companion application demonstrates how to keep AI model routing, fallback, privacy, and unit-price controls behind a small ASP.NET Core gateway. It accompanies the forthcoming article, *OpenRouter in .NET: Multi-Model Routing, Fallbacks, and Cost Controls*. The article link will be added when it is published.
 
 The project intentionally separates two integration styles:
 
@@ -13,7 +13,7 @@ API credentials never enter a browser or request body. Live mode reads the key f
 
 - .NET 10 SDK
 
-After NuGet restore, no API key, account, model download, or network connection is required for the default first run or test suite.
+The first restore needs access to NuGet. After restore, the default first run and test suite require no API key, account, model download, OpenRouter access, or paid inference.
 
 ## First run
 
@@ -27,11 +27,11 @@ dotnet run --project src/OpenRouterRoutingDemo.Api/OpenRouterRoutingDemo.Api.csp
 In another terminal:
 
 ```bash
-curl -s http://127.0.0.1:5088/
+curl -fsS http://127.0.0.1:5088/
 
-curl -s http://127.0.0.1:5088/api/policies
+curl -fsS http://127.0.0.1:5088/api/policies
 
-curl -s http://127.0.0.1:5088/api/chat/economy \
+curl -fsS http://127.0.0.1:5088/api/chat/economy \
   -H 'Content-Type: application/json' \
   --data '{"prompt":"Explain why explicit model routing policies matter."}'
 ```
@@ -41,16 +41,17 @@ The default response identifies `mode` as `simulated`. Chat calls return determi
 Model discovery is an explicit network operation against OpenRouter's public catalogue and does not require an API key:
 
 ```bash
-curl -s \
+curl -fsS \
   'http://127.0.0.1:5088/api/models?requiresTools=true&sort=pricing-low-to-high&take=10'
 ```
 
 ## Live OpenRouter mode
 
-Create an OpenRouter API key and start the server with live mode explicitly enabled:
+Create an OpenRouter API key and a separate, high-entropy demo access key. Start the server with live mode explicitly enabled:
 
 ```bash
 OPENROUTER_API_KEY='your-key' \
+OPENROUTER_DEMO_ACCESS_KEY='a-separate-high-entropy-access-key' \
 OpenRouter__UseLiveApi=true \
 dotnet run --project src/OpenRouterRoutingDemo.Api/OpenRouterRoutingDemo.Api.csproj --urls http://127.0.0.1:5088
 ```
@@ -59,30 +60,36 @@ Then call either integration path:
 
 ```bash
 # OpenRouter-specific named routing policy
-curl -s http://127.0.0.1:5088/api/chat/resilient-private \
+curl -fsS http://127.0.0.1:5088/api/chat/resilient-private \
+  -H 'X-Demo-Access-Key: a-separate-high-entropy-access-key' \
   -H 'Content-Type: application/json' \
   --data '{"prompt":"Summarize the tradeoffs of multi-provider routing."}'
 
 # Portable OpenAI-compatible IChatClient path
-curl -s http://127.0.0.1:5088/api/chat-compatible \
+curl -fsS http://127.0.0.1:5088/api/chat-compatible \
+  -H 'X-Demo-Access-Key: a-separate-high-entropy-access-key' \
   -H 'Content-Type: application/json' \
   --data '{"prompt":"Explain the adapter pattern in one paragraph."}'
 ```
 
-Override the compatibility-path model without changing source:
+Override the compatibility-path model for the current shell without changing source:
 
 ```bash
-OpenRouter__CompatibleModel='provider/model-slug'
+export OpenRouter__CompatibleModel='provider/model-slug'
 ```
 
 To opt into OpenRouter app attribution, configure both values before starting the API:
 
 ```bash
-OpenRouter__ApplicationUrl='https://your-app.example' \
-OpenRouter__ApplicationTitle='Your application name'
+export OpenRouter__ApplicationUrl='https://your-app.example'
+export OpenRouter__ApplicationTitle='Your application name'
 ```
 
 These headers identify an application to OpenRouter; they do not authenticate the request.
+
+The live endpoints require `X-Demo-Access-Key` and apply a per-IP fixed-window limit of 60 requests per minute. This is a safety boundary for the sample, not a complete production identity or quota system. A public deployment should use the application's normal authentication and authorization scheme, per-user quotas, and an account-level budget.
+
+The named `/api/chat/{policyName}` endpoint applies the routing policy shown in this repository. The `/api/chat-compatible` endpoint demonstrates the portable `IChatClient` path and does not apply OpenRouter-specific routing, privacy, fallback, or price controls. Keep that distinction clear when adapting this sample.
 
 Model availability, prices, and capabilities change. Before enabling a policy in production, validate its configured model IDs with the [OpenRouter Models API](https://openrouter.ai/docs/guides/overview/models).
 
@@ -94,6 +101,8 @@ Model availability, prices, and capabilities change. Before enabling a policy in
 - `resilient-private` uses ordered model fallback, prefers throughput, denies data collection, and requires Zero Data Retention endpoints.
 
 These controls are not interchangeable. ZDR prevents an eligible inference provider from retaining the request, but it does not keep data inside your own network or govern your application's logs.
+
+`max_price` caps the eligible provider's price per token. It is not an account-level, daily, tenant, or request-total budget. Add those limits in the application or billing platform that owns them.
 
 ## Tests
 

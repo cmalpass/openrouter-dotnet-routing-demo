@@ -16,10 +16,10 @@ public sealed class RoutingPolicyCatalog
     public static RoutingPolicyCatalog CreateDefault() => new(
     [
         new RoutingPolicy(
-            Name: "economy",
-            Description: "Prefer the least-expensive eligible endpoint and stop above an explicit price ceiling.",
-            Models: ["openai/gpt-5-mini", "openai/gpt-4.1-mini"],
-            Provider: new ProviderRoutingOptions
+            name: "economy",
+            description: "Prefer the least-expensive eligible endpoint and stop above an explicit price ceiling.",
+            models: ["openai/gpt-5-mini", "openai/gpt-4.1-mini"],
+            provider: new ProviderRoutingOptions
             {
                 Sort = new ProviderSortOptions(By: "price", Partition: "none"),
                 AllowFallbacks = true,
@@ -28,15 +28,15 @@ public sealed class RoutingPolicyCatalog
                 MaxPrice = new PriceCeiling(Prompt: 0.50m, Completion: 2.00m)
             }),
         new RoutingPolicy(
-            Name: "resilient-private",
-            Description: "Try several capable models while requiring no provider retention or data collection.",
-            Models:
+            name: "resilient-private",
+            description: "Try several capable models while requiring no provider retention or data collection.",
+            models:
             [
                 "openai/gpt-5-mini",
                 "deepseek/deepseek-v4-pro",
                 "tencent/hy4-preview"
             ],
-            Provider: new ProviderRoutingOptions
+            provider: new ProviderRoutingOptions
             {
                 Sort = new ProviderSortOptions(By: "throughput", Partition: "model"),
                 AllowFallbacks = true,

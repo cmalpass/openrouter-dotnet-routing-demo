@@ -1,30 +1,37 @@
-using Microsoft.Extensions.AI;
+using System.ClientModel;
+using System.Text.Json;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using OpenRouterRoutingDemo.Api;
 using OpenRouterRoutingDemo.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var environmentApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
-if (!string.IsNullOrWhiteSpace(environmentApiKey))
-{
-    builder.Configuration[$"{OpenRouterOptions.SectionName}:ApiKey"] = environmentApiKey;
-}
-
 builder.Services
     .AddOptions<OpenRouterOptions>()
     .Bind(builder.Configuration.GetSection(OpenRouterOptions.SectionName))
     .Validate(
-        options => Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpoint) &&
-                   endpoint.Scheme == Uri.UriSchemeHttps,
-        "OpenRouter:Endpoint must be an absolute HTTPS URL.")
+        options => string.Equals(
+            options.Endpoint,
+            "https://openrouter.ai/api/v1/",
+            StringComparison.Ordinal),
+        "OpenRouter:Endpoint must be https://openrouter.ai/api/v1/.")
     .Validate(
-        options => !options.UseLiveApi || !string.IsNullOrWhiteSpace(options.ApiKey),
+        options => !options.UseLiveApi ||
+                   !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENROUTER_API_KEY")),
         "Live mode requires the OPENROUTER_API_KEY environment variable.")
+    .Validate(
+        options => !options.UseLiveApi ||
+                   !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENROUTER_DEMO_ACCESS_KEY")),
+        "Live mode requires the OPENROUTER_DEMO_ACCESS_KEY environment variable.")
     .ValidateOnStart();
 
+builder.Services.AddProblemDetails();
+builder.Services.AddSingleton<IOpenRouterCredentials, EnvironmentOpenRouterCredentials>();
 builder.Services.AddSingleton(RoutingPolicyCatalog.CreateDefault());
 builder.Services.AddSingleton<CompatibleChatClientFactory>();
+builder.Services.AddSingleton<ICompatibleChatGateway, CompatibleChatGateway>();
 builder.Services.AddHttpClient<OpenRouterCatalogClient>(client =>
 {
     client.BaseAddress = new Uri("https://openrouter.ai/api/v1/", UriKind.Absolute);
@@ -47,7 +54,25 @@ else
     builder.Services.AddSingleton<IOpenRouterGateway, SimulatedOpenRouterGateway>();
 }
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("live-api", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
+app.UseRateLimiter();
 
 app.MapGet("/", (IOptions<OpenRouterOptions> options, RoutingPolicyCatalog policies) =>
     Results.Ok(new
@@ -72,6 +97,7 @@ app.MapGet("/api/models", async (
     string? sort,
     int? take,
     OpenRouterCatalogClient catalog,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
@@ -96,13 +122,26 @@ app.MapGet("/api/models", async (
             [exception.ParamName ?? "query"] = [exception.Message]
         });
     }
+    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status504GatewayTimeout, "The model catalogue request timed out.");
+    }
+    catch (HttpRequestException)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status502BadGateway, "The model catalogue request failed.");
+    }
+    catch (JsonException)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status502BadGateway, "The model catalogue returned an invalid response.");
+    }
 });
 
-app.MapPost("/api/chat/{policyName}", async (
+var policyChatEndpoint = app.MapPost("/api/chat/{policyName}", async (
     string policyName,
     ChatGatewayRequest request,
     RoutingPolicyCatalog policies,
     IOpenRouterGateway gateway,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     if (!policies.TryGet(policyName, out var policy) || policy is null)
@@ -124,17 +163,28 @@ app.MapPost("/api/chat/{policyName}", async (
     }
     catch (OpenRouterRequestException exception)
     {
-        return Results.Problem(
-            statusCode: StatusCodes.Status502BadGateway,
-            title: "The upstream model request failed.",
-            detail: $"OpenRouter returned HTTP {(int)exception.StatusCode}.");
+        return UpstreamProblem(
+            httpContext,
+            StatusCodes.Status502BadGateway,
+            $"The upstream model request failed with HTTP {(int)exception.StatusCode}.");
+    }
+    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status504GatewayTimeout, "The upstream model request timed out.");
+    }
+    catch (Exception exception) when (
+        exception is HttpRequestException or JsonException or InvalidOperationException)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status502BadGateway, "The upstream model request failed.");
     }
 });
+policyChatEndpoint.AddEndpointFilter<LiveModeAccessFilter>().RequireRateLimiting("live-api");
 
-app.MapPost("/api/chat-compatible", async (
+var compatibleChatEndpoint = app.MapPost("/api/chat-compatible", async (
     ChatGatewayRequest request,
-    CompatibleChatClientFactory factory,
+    ICompatibleChatGateway gateway,
     IOptions<OpenRouterOptions> options,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     if (!options.Value.UseLiveApi)
@@ -152,17 +202,37 @@ app.MapPost("/api/chat-compatible", async (
         });
     }
 
-    using IChatClient chatClient = factory.Create();
-    var response = await chatClient.GetResponseAsync(request.Prompt, cancellationToken: cancellationToken);
-
-    return Results.Ok(new
+    try
     {
-        content = response.Text,
-        model = options.Value.CompatibleModel,
-        path = "OpenAI-compatible IChatClient"
-    });
+        var response = await gateway.SendAsync(request.Prompt, cancellationToken);
+        return Results.Ok(new
+        {
+            content = response.Content,
+            model = response.Model,
+            path = "OpenAI-compatible IChatClient"
+        });
+    }
+    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status504GatewayTimeout, "The compatible model request timed out.");
+    }
+    catch (Exception exception) when (
+        exception is HttpRequestException or ClientResultException or JsonException or InvalidOperationException)
+    {
+        return UpstreamProblem(httpContext, StatusCodes.Status502BadGateway, "The compatible model request failed.");
+    }
 });
+compatibleChatEndpoint.AddEndpointFilter<LiveModeAccessFilter>().RequireRateLimiting("live-api");
 
 app.Run();
+
+static IResult UpstreamProblem(HttpContext context, int statusCode, string title) =>
+    Results.Problem(
+        statusCode: statusCode,
+        title: title,
+        extensions: new Dictionary<string, object?>
+        {
+            ["traceId"] = context.TraceIdentifier
+        });
 
 public partial class Program;

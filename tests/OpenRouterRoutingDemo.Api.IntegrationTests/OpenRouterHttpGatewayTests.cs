@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using OpenRouterRoutingDemo.Api;
 using OpenRouterRoutingDemo.Core;
 
 namespace OpenRouterRoutingDemo.Api.IntegrationTests;
@@ -70,11 +72,14 @@ public sealed class OpenRouterHttpGatewayTests
         };
         var options = Options.Create(new OpenRouterOptions
         {
-            ApiKey = "test-key",
             ApplicationTitle = "Gateway tests",
             ApplicationUrl = "https://example.test"
         });
-        var gateway = new OpenRouterHttpGateway(httpClient, options);
+        var gateway = new OpenRouterHttpGateway(
+            httpClient,
+            options,
+            new TestCredentials(),
+            NullLogger<OpenRouterHttpGateway>.Instance);
         var catalog = RoutingPolicyCatalog.CreateDefault();
         Assert.True(catalog.TryGet("economy", out var policy));
 
@@ -106,7 +111,9 @@ public sealed class OpenRouterHttpGatewayTests
         };
         var gateway = new OpenRouterHttpGateway(
             httpClient,
-            Options.Create(new OpenRouterOptions { ApiKey = "test-key" }));
+            Options.Create(new OpenRouterOptions()),
+            new TestCredentials(),
+            NullLogger<OpenRouterHttpGateway>.Instance);
         var catalog = RoutingPolicyCatalog.CreateDefault();
         Assert.True(catalog.TryGet("economy", out var policy));
 
@@ -127,5 +134,12 @@ public sealed class OpenRouterHttpGatewayTests
             cancellationToken.ThrowIfCancellationRequested();
             return responseFactory(request);
         }
+    }
+
+    private sealed class TestCredentials : IOpenRouterCredentials
+    {
+        public string? ApiKey => "test-key";
+
+        public string? DemoAccessKey => "test-access-key";
     }
 }
