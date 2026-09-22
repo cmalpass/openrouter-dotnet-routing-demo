@@ -28,6 +28,7 @@ public sealed class ApiTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Contains("\"mode\":\"simulated\"", json, StringComparison.Ordinal);
         Assert.Contains("economy", json, StringComparison.Ordinal);
         Assert.Contains("resilient-private", json, StringComparison.Ordinal);
+        Assert.Contains("free", json, StringComparison.Ordinal);
     }
 
     [Fact]

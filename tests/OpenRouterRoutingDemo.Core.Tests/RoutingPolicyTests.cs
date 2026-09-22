@@ -42,6 +42,21 @@ public sealed class RoutingPolicyTests
             request.Models);
     }
 
+    [Fact]
+    public void FreePolicyUsesConfiguredFreeModelAndZeroPriceCeiling()
+    {
+        var catalog = RoutingPolicyCatalog.CreateDefault("provider/example:free");
+        Assert.True(catalog.TryGet("free", out var policy));
+
+        var request = policy!.CreateRequest("Check the live smoke-test path.");
+
+        Assert.Equal(["provider/example:free"], request.Models);
+        Assert.True(request.Provider.AllowFallbacks);
+        Assert.True(request.Provider.RequireParameters);
+        Assert.Equal(0m, request.Provider.MaxPrice!.Prompt);
+        Assert.Equal(0m, request.Provider.MaxPrice.Completion);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

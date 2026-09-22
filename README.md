@@ -6,6 +6,7 @@ The project intentionally separates two integration styles:
 
 - `CompatibleChatClientFactory` points the official OpenAI .NET client at OpenRouter and exposes `Microsoft.Extensions.AI.IChatClient` for portable chat operations.
 - `OpenRouterHttpGateway` uses explicit JSON contracts for OpenRouter-only fields such as `models`, `provider.sort`, `max_price`, `data_collection`, and `zdr`.
+- The `free` policy routes to an OpenRouter `:free` model with a zero price ceiling for live smoke tests and low-stakes development calls.
 
 API credentials never enter a browser or request body. Live mode reads `OPENROUTER_API_KEY` and the separate demo access key from server-side environment variables.
 
@@ -65,6 +66,12 @@ curl -fsS http://127.0.0.1:5088/api/chat/resilient-private \
   -H 'Content-Type: application/json' \
   --data '{"prompt":"Summarize the tradeoffs of multi-provider routing."}'
 
+# Zero-price development and smoke-test policy
+curl -fsS http://127.0.0.1:5088/api/chat/free \
+  -H 'X-Demo-Access-Key: a-separate-high-entropy-access-key' \
+  -H 'Content-Type: application/json' \
+  --data '{"prompt":"Explain the purpose of a routing policy in one paragraph."}'
+
 # Portable OpenAI-compatible IChatClient path
 curl -fsS http://127.0.0.1:5088/api/chat-compatible \
   -H 'X-Demo-Access-Key: a-separate-high-entropy-access-key' \
@@ -77,6 +84,14 @@ Override the compatibility-path model for the current shell without changing sou
 ```bash
 export OpenRouter__CompatibleModel='provider/model-slug'
 ```
+
+The `free` policy defaults to `liquid/lfm-2.5-2.6b:free`. You can select another currently listed OpenRouter free variant without changing source:
+
+```bash
+export OpenRouter__FreeModel='provider/model:free'
+```
+
+Free variants have no inference charge, but they are not unlimited, guaranteed-available, or automatically private. OpenRouter documents separate rate limits and availability for free variants. Validate the selected model in the [Models API](https://openrouter.ai/docs/guides/overview/models) before a live run.
 
 To opt into OpenRouter app attribution, configure both values before starting the API:
 
@@ -95,10 +110,11 @@ Model availability, prices, and capabilities change. Before enabling a policy in
 
 ## Routing policies
 
-`RoutingPolicyCatalog` contains two dated examples:
+`RoutingPolicyCatalog` contains three examples:
 
 - `economy` sorts eligible providers by price, denies provider data collection, and applies a maximum prompt/completion price.
 - `resilient-private` uses ordered model fallback, prefers throughput, denies data collection, and requires Zero Data Retention endpoints.
+- `free` uses a configurable `:free` model and a zero price ceiling for live validation without paid inference.
 
 These controls are not interchangeable. ZDR prevents an eligible inference provider from retaining the request, but it does not keep data inside your own network or govern your application's logs.
 
@@ -111,7 +127,7 @@ dotnet build OpenRouterRoutingDemo.sln --configuration Release
 dotnet test OpenRouterRoutingDemo.sln --configuration Release --no-build
 ```
 
-The 24-test suite contains 10 core unit tests and 14 API integration tests. The core tests verify policy selection, validation, JSON field names, privacy controls, fallback model order, and the simulated provider. API tests exercise the running HTTP pipeline through `WebApplicationFactory<Program>`, the typed OpenRouter request/response boundary, live-mode access control and rate limiting, and public model-catalogue mapping through fake upstream handlers.
+The 25-test suite contains 11 core unit tests and 14 API integration tests. The core tests verify policy selection, validation, JSON field names, privacy controls, fallback model order, the configurable free policy, and the simulated provider. API tests exercise the running HTTP pipeline through `WebApplicationFactory<Program>`, the typed OpenRouter request/response boundary, live-mode access control and rate limiting, and public model-catalogue mapping through fake upstream handlers.
 
 The test suite never contacts OpenRouter and never consumes credits.
 
@@ -120,6 +136,7 @@ The test suite never contacts OpenRouter and never consumes credits.
 - [OpenAI .NET SDK: custom base URL and API key](https://github.com/openai/openai-dotnet#using-a-custom-base-url-and-api-key)
 - [Microsoft.Extensions.AI libraries](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai)
 - [OpenRouter provider routing](https://openrouter.ai/docs/guides/routing/provider-selection)
+- [OpenRouter free model variants](https://openrouter.ai/docs/guides/routing/model-variants/free)
 - [OpenRouter model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)
 - [OpenRouter router metadata](https://openrouter.ai/docs/guides/features/router-metadata)
 - [OpenRouter usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting)

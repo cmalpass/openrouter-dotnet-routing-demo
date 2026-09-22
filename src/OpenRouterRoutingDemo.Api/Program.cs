@@ -29,7 +29,8 @@ builder.Services
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<IOpenRouterCredentials, EnvironmentOpenRouterCredentials>();
-builder.Services.AddSingleton(RoutingPolicyCatalog.CreateDefault());
+builder.Services.AddSingleton(RoutingPolicyCatalog.CreateDefault(
+    builder.Configuration[$"{OpenRouterOptions.SectionName}:FreeModel"]));
 builder.Services.AddSingleton<CompatibleChatClientFactory>();
 builder.Services.AddSingleton<ICompatibleChatGateway, CompatibleChatGateway>();
 builder.Services.AddHttpClient<OpenRouterCatalogClient>(client =>
