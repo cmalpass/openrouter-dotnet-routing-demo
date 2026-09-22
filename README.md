@@ -1,6 +1,6 @@
 # OpenRouter routing policies in .NET 10
 
-This companion application demonstrates how to keep AI model routing, fallback, privacy, and unit-price controls behind a small ASP.NET Core gateway. It accompanies the forthcoming article, *OpenRouter in .NET: Multi-Model Routing, Fallbacks, and Cost Controls*. The article link will be added when it is published.
+This companion application demonstrates how to keep AI model routing, fallback, privacy, and unit-price controls behind a small ASP.NET Core gateway. It accompanies [*OpenRouter in .NET: Multi-Model Routing, Fallbacks, and Cost Controls*](https://chrismalpass.com/posts/openrouter-dotnet-routing/).
 
 The project intentionally separates two integration styles:
 
