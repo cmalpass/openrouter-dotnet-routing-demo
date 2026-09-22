@@ -85,13 +85,13 @@ Override the compatibility-path model for the current shell without changing sou
 export OpenRouter__CompatibleModel='provider/model-slug'
 ```
 
-The `free` policy defaults to `liquid/lfm-2.5-2.6b:free`. You can select another currently listed OpenRouter free variant without changing source:
+The `free` policy defaults to `inclusionai/ling-3.0-flash-fin:free`. You can select another currently listed OpenRouter free variant without changing source:
 
 ```bash
 export OpenRouter__FreeModel='provider/model:free'
 ```
 
-Free variants have no inference charge, but they are not unlimited, guaranteed-available, or automatically private. OpenRouter documents separate rate limits and availability for free variants. Validate the selected model in the [Models API](https://openrouter.ai/docs/guides/overview/models) before a live run.
+Free variants have no inference charge, but they are not unlimited, guaranteed-available, or automatically private. OpenRouter documents separate rate limits and availability for free variants. Account-wide provider allowlists and guardrails can remove every free endpoint from consideration, which surfaces as a 404 "no endpoints available" response. Validate the selected model and account policy in the [Models API](https://openrouter.ai/docs/guides/overview/models) before a live run.
 
 To opt into OpenRouter app attribution, configure both values before starting the API:
 

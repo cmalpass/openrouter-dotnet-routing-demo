@@ -27,7 +27,12 @@ public sealed class OpenRouterChatRequest
     public required IReadOnlyList<OpenRouterMessage> Messages { get; init; }
 
     [JsonPropertyName("max_completion_tokens")]
-    public int MaxCompletionTokens { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? MaxCompletionTokens { get; init; }
+
+    [JsonPropertyName("max_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? MaxTokens { get; init; }
 
     [JsonPropertyName("provider")]
     public required ProviderRoutingOptions Provider { get; init; }

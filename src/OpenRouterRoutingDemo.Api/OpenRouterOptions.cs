@@ -10,7 +10,7 @@ public sealed class OpenRouterOptions
 
     public string CompatibleModel { get; set; } = "openai/gpt-5-mini";
 
-    public string FreeModel { get; set; } = "liquid/lfm-2.5-2.6b:free";
+    public string FreeModel { get; set; } = "inclusionai/ling-3.0-flash-fin:free";
 
     public string? ApplicationUrl { get; set; }
 

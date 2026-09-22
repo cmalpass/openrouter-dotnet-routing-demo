@@ -15,7 +15,7 @@ public sealed class RoutingPolicyCatalog
 
     public static RoutingPolicyCatalog CreateDefault(string? freeModel = null)
     {
-        const string defaultFreeModel = "liquid/lfm-2.5-2.6b:free";
+        const string defaultFreeModel = "inclusionai/ling-3.0-flash-fin:free";
         freeModel = string.IsNullOrWhiteSpace(freeModel) ? defaultFreeModel : freeModel;
 
         if (!freeModel.EndsWith(":free", StringComparison.OrdinalIgnoreCase))
@@ -65,7 +65,8 @@ public sealed class RoutingPolicyCatalog
                     AllowFallbacks = true,
                     RequireParameters = true,
                     MaxPrice = new PriceCeiling(Prompt: 0m, Completion: 0m)
-                })
+                },
+                useLegacyMaxTokens: true)
         ]);
     }
 }

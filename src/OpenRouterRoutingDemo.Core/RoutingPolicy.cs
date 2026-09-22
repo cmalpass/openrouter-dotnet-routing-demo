@@ -7,7 +7,8 @@ public sealed record RoutingPolicy
         string description,
         IReadOnlyList<string> models,
         ProviderRoutingOptions provider,
-        int maxCompletionTokens = 600)
+        int maxCompletionTokens = 600,
+        bool useLegacyMaxTokens = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
@@ -33,6 +34,7 @@ public sealed record RoutingPolicy
         Models = models;
         Provider = provider;
         MaxCompletionTokens = maxCompletionTokens;
+        UseLegacyMaxTokens = useLegacyMaxTokens;
     }
 
     public string Name { get; }
@@ -44,6 +46,8 @@ public sealed record RoutingPolicy
     public ProviderRoutingOptions Provider { get; }
 
     public int MaxCompletionTokens { get; }
+
+    public bool UseLegacyMaxTokens { get; }
 
     public OpenRouterChatRequest CreateRequest(string prompt)
     {
@@ -58,7 +62,8 @@ public sealed record RoutingPolicy
         {
             Models = Models,
             Messages = [new OpenRouterMessage("user", prompt)],
-            MaxCompletionTokens = MaxCompletionTokens,
+            MaxCompletionTokens = UseLegacyMaxTokens ? null : MaxCompletionTokens,
+            MaxTokens = UseLegacyMaxTokens ? MaxCompletionTokens : null,
             Provider = Provider
         };
     }

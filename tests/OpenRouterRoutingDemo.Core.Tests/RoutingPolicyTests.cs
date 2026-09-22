@@ -55,6 +55,8 @@ public sealed class RoutingPolicyTests
         Assert.True(request.Provider.RequireParameters);
         Assert.Equal(0m, request.Provider.MaxPrice!.Prompt);
         Assert.Equal(0m, request.Provider.MaxPrice.Completion);
+        Assert.Null(request.MaxCompletionTokens);
+        Assert.Equal(600, request.MaxTokens);
     }
 
     [Theory]
